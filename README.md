@@ -1,23 +1,43 @@
-# ProjectFlow
+# EtharaAI Task Manager
 
-ProjectFlow is a full-stack project and task management web app. Users can create projects, add team members, assign tasks, update task status, and track overall progress from a dashboard.
+EtharaAI Task Manager is a full-stack project and task management web app. Users can sign up, log in, create projects, add team members, assign tasks, update task status, and track progress from a dashboard.
 
-The app includes authentication, role-based access control, REST APIs, PostgreSQL database relationships, and Railway deployment configuration.
+The backend is built with Flask and PostgreSQL. The frontend is plain HTML, CSS, and JavaScript served from the `public/` folder.
 
 ## Features
 
 - User signup and login
-- JWT-based authentication
+- JWT authentication
 - Password hashing with bcrypt
 - Admin and Member roles
-- Project creation and management
-- Team member assignment
+- Project and team management
 - Task creation, assignment, priority, due date, and status tracking
-- Dashboard with total tasks, status counts, overdue tasks, and project count
+- Dashboard for total tasks, task status, overdue tasks, and project count
 - Admin-only user role management
 - REST API backend
 - PostgreSQL database
-- Railway-ready deployment setup
+- Railway deployment support
+
+## Folder Structure
+
+```text
+EtharaAI/
++-- app.py
++-- Procfile
++-- README.md
++-- requirements.txt
++-- runtime.txt
++-- public/
+|   +-- index.html
+|   +-- styles.css
+|   +-- app.js
++-- task_manager/
+    +-- __init__.py
+    +-- auth.py
+    +-- database.py
+    +-- repository.py
+    +-- server.py
+```
 
 ## Role Access
 
@@ -41,123 +61,65 @@ Members can:
 - Create and update tasks inside their projects
 - Track their project dashboard
 
-The first user who signs up becomes an `admin`. Every user after that becomes a `member` by default.
+The first user who signs up becomes an `admin`. Every later user becomes a `member`.
 
-## Tech Stack
+## Local Setup
 
-- Frontend: HTML, CSS, JavaScript
-- Backend: Node.js, Express
-- Database: PostgreSQL
-- Authentication: JWT
-- Password Security: bcryptjs
-- Validation: Zod
-- Deployment: Railway
-
-## Project Structure
-
-```text
-.
-|-- public/
-|   |-- index.html
-|   |-- styles.css
-|   `-- app.js
-|-- src/
-|   |-- routes/
-|   |   |-- auth.js
-|   |   |-- dashboard.js
-|   |   |-- projects.js
-|   |   |-- tasks.js
-|   |   `-- users.js
-|   |-- auth.js
-|   |-- db.js
-|   |-- middleware.js
-|   `-- validators.js
-|-- tests/
-|   `-- auth-smoke.js
-|-- server.js
-|-- package.json
-|-- railway.json
-`-- .env.example
-```
-
-## Getting Started
-
-### 1. Install Dependencies
+### 1. Create a Virtual Environment
 
 ```bash
-npm install
+python -m venv .venv
 ```
 
-### 2. Create Environment File
-
-Copy the example environment file:
-
-```bash
-cp .env.example .env
-```
-
-On Windows PowerShell, you can use:
+Windows PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
+.\.venv\Scripts\Activate.ps1
 ```
 
-### 3. Add Environment Variables
+macOS/Linux:
 
-Open `.env` and set:
+```bash
+source .venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Create Environment Variables
+
+Create a `.env` file:
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 JWT_SECRET=use-a-long-random-secret
-PORT=3000
+PORT=5000
 ```
 
 Example local database URL:
 
 ```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/projectflow
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/task_manager
 ```
 
-### 4. Start the App
+### 4. Run the App
 
 ```bash
-npm run dev
+python app.py
 ```
 
-Then open:
+Open:
 
 ```text
-http://localhost:3000
-```
-
-## Testing
-
-Run the authentication smoke test:
-
-```bash
-npm run test:auth
-```
-
-This checks:
-
-- Signup
-- Duplicate signup rejection
-- First user admin role
-- Later user member role
-- Login
-- Invalid password rejection
-- JWT-protected `/api/auth/me`
-- Missing-token rejection
-
-You can also check JavaScript syntax with:
-
-```bash
-node --check server.js
+http://localhost:5000
 ```
 
 ## API Overview
 
-All protected routes require this header:
+Protected routes require this header:
 
 ```http
 Authorization: Bearer YOUR_JWT_TOKEN
@@ -208,79 +170,39 @@ Authorization: Bearer YOUR_JWT_TOKEN
 
 ## Railway Deployment
 
-### 1. Push to GitHub
+### Required Files
 
-Create a GitHub repository and push this project.
+These files are included for Railway:
 
-### 2. Create Railway Project
+- `Procfile` starts the app with Gunicorn
+- `requirements.txt` installs Python dependencies
+- `runtime.txt` pins the Python version
+- `app.py` exposes the Flask app as `app`
 
-In Railway:
+### Required Railway Variables
 
-1. Click `New Project`
-2. Select `Deploy from GitHub repo`
-3. Choose this repository
-
-### 3. Add PostgreSQL
-
-In the same Railway project:
-
-1. Click `New`
-2. Select `Database`
-3. Select `PostgreSQL`
-
-### 4. Add Variables
-
-Open your web service variables and add:
+Add these variables to the Railway web service:
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 JWT_SECRET=your-long-random-secret
-NODE_ENV=production
 ```
 
-Railway will automatically provide the app port through `PORT`.
+Railway provides `PORT` automatically.
 
-Required deployment files are already included:
+Do not set this in production:
 
-- `Procfile` tells Railway to run `npm start`
-- `railway.json` defines the Nixpacks builder, start command, restart policy, and healthcheck
-- `.node-version` pins Node.js 20
-- `package.json` includes the production start script and Node engine
-
-### 5. Deploy
-
-Railway will use `railway.json` and run:
-
-```bash
-npm start
+```env
+SKIP_DB_INIT=true
 ```
 
-The database tables are created automatically when the server starts.
+### Deployment Steps
 
-## Useful Commands
+1. Push this project to GitHub.
+2. Create a Railway project from the GitHub repository.
+3. Add a PostgreSQL database service.
+4. Add `DATABASE_URL` from the PostgreSQL service to the web service.
+5. Add `JWT_SECRET`.
+6. Redeploy the web service.
 
-```bash
-npm run dev
-```
-
-Start the app in development mode.
-
-```bash
-npm start
-```
-
-Start the app in production mode.
-
-```bash
-npm run test:auth
-```
-
-Run authentication checks.
-
-## Notes
-
-- Do not commit `.env`.
-- Use a strong `JWT_SECRET` in production.
-- The first signup should be your admin account.
-- PostgreSQL is required for normal app startup.
-- `SKIP_DB_INIT=true` is only for local smoke testing and should not be used in production.
+The database tables are created automatically when the Flask app starts.
