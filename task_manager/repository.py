@@ -1,4 +1,4 @@
-from task_manager.database import placeholders, query
+from task_manager.database import query
 
 
 def public_user(user):
@@ -14,19 +14,19 @@ def public_user(user):
 
 
 def get_user_by_email(email):
-    return query("SELECT * FROM users WHERE email = %s", [email], fetch="one")
+    return query("SELECT * FROM users WHERE email = ?", [email], fetch="one")
 
 
 def get_public_user_by_id(user_id):
     return query(
-        "SELECT id, name, email, role, created_at FROM users WHERE id = %s",
+        "SELECT id, name, email, role, created_at FROM users WHERE id = ?",
         [user_id],
         fetch="one",
     )
 
 
 def user_count():
-    row = query("SELECT COUNT(*)::int AS total FROM users", fetch="one")
+    row = query("SELECT COUNT(*) AS total FROM users", fetch="one")
     return row["total"]
 
 
@@ -34,7 +34,7 @@ def create_user(name, email, password_hash, role):
     return query(
         """
         INSERT INTO users (name, email, password_hash, role)
-        VALUES (%s, %s, %s, %s)
+        VALUES (?, ?, ?, ?)
         RETURNING id, name, email, role, created_at
         """,
         [name, email, password_hash, role],
@@ -44,7 +44,7 @@ def create_user(name, email, password_hash, role):
 
 def get_project_access(project_id, user):
     if user["role"] == "admin":
-        project = query("SELECT * FROM projects WHERE id = %s", [project_id], fetch="one")
+        project = query("SELECT * FROM projects WHERE id = ?", [project_id], fetch="one")
         if not project:
             return None
         return {"project": project, "membership": {"role": "owner"}}
@@ -54,7 +54,7 @@ def get_project_access(project_id, user):
         SELECT p.*, pm.role AS member_role
         FROM projects p
         JOIN project_members pm ON pm.project_id = p.id
-        WHERE p.id = %s AND pm.user_id = %s
+        WHERE p.id = ? AND pm.user_id = ?
         """,
         [project_id, user["id"]],
         fetch="one",
@@ -72,7 +72,7 @@ def attach_project_details(projects):
         return []
 
     project_ids = [project["id"] for project in projects]
-    project_placeholders = placeholders(len(project_ids))
+    project_placeholders = ", ".join(["?"] * len(project_ids))
     members = query(
         f"""
         SELECT pm.project_id, u.id, u.name, u.email, u.role, pm.role AS project_role
@@ -86,8 +86,8 @@ def attach_project_details(projects):
     stats = query(
         f"""
         SELECT project_id,
-          COUNT(*)::int AS total_tasks,
-          COUNT(*) FILTER (WHERE status = 'done')::int AS done_tasks
+          COUNT(*) AS total_tasks,
+          COUNT(*) FILTER (WHERE status = 'done') AS done_tasks
         FROM tasks
         WHERE project_id IN ({project_placeholders})
         GROUP BY project_id

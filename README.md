@@ -2,7 +2,7 @@
 
 EtharaAI Task Manager is a full-stack project and task management web app. Users can sign up, log in, create projects, add team members, assign tasks, update task status, and track progress from a dashboard.
 
-The backend is built with Flask and a SQL database. By default it uses SQLite automatically, so you can deploy without manually creating a database service. If `DATABASE_URL` is provided later, the app can use PostgreSQL instead.
+The backend is built with Flask and SQLite, so you can deploy without manually creating a separate database service.
 
 ## Features
 
@@ -15,8 +15,7 @@ The backend is built with Flask and a SQL database. By default it uses SQLite au
 - Dashboard for total tasks, task status, overdue tasks, and project count
 - Admin-only user role management
 - REST API backend
-- SQLite database by default
-- Optional PostgreSQL support through `DATABASE_URL`
+- SQLite database
 - Railway deployment support
 
 ## Folder Structure
@@ -98,12 +97,6 @@ Create a `.env` file:
 JWT_SECRET=use-a-long-random-secret
 PORT=5000
 SQLITE_PATH=task_manager.sqlite3
-```
-
-Optional PostgreSQL URL:
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/task_manager
 ```
 
 ### 4. Run the App
@@ -190,7 +183,7 @@ JWT_SECRET=your-long-random-secret
 
 Railway provides `PORT` automatically.
 
-You do not need to add PostgreSQL manually. If `DATABASE_URL` is not set, the app creates and uses a SQLite database automatically.
+The app creates and uses a SQLite database automatically.
 
 Do not set this in production:
 
@@ -207,4 +200,4 @@ SKIP_DB_INIT=true
 
 The database tables are created automatically when the Flask app starts.
 
-Note: Railway's normal filesystem can reset across redeploys. The SQLite fallback is simple and deploys without manual setup, but PostgreSQL is still better for permanent production data.
+Note: Railway's normal filesystem can reset across redeploys. SQLite keeps this deployment simple and self-contained, but production data may reset after redeploys depending on Railway storage behavior.

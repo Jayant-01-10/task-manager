@@ -7,7 +7,7 @@ from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from task_manager.auth import decode_token, hash_password, sign_token, verify_password
-from task_manager.database import database_backend, database_url, init_db, query
+from task_manager.database import init_db, query
 from task_manager.repository import (
     attach_project_details,
     create_user,
@@ -47,8 +47,8 @@ def create_app():
         return jsonify({
             "ok": True,
             "service": "project-task-rbac-app",
-            "databaseBackend": database_backend(),
-            "databaseConfigured": bool(database_url()) or database_backend() == "sqlite",
+            "databaseBackend": "sqlite",
+            "databaseConfigured": True,
         })
 
     @app.post("/api/auth/signup")
@@ -101,7 +101,7 @@ def create_app():
                 FROM users u
                 JOIN project_members pm ON pm.user_id = u.id
                 WHERE pm.project_id IN (
-                  SELECT project_id FROM project_members WHERE user_id = %s
+                  SELECT project_id FROM project_members WHERE user_id = ?
                 )
                 ORDER BY u.name ASC
                 """,
@@ -123,8 +123,8 @@ def create_app():
         user = query(
             """
             UPDATE users
-            SET role = %s
-            WHERE id = %s
+            SET role = ?
+            WHERE id = ?
             RETURNING id, name, email, role, created_at
             """,
             [role, user_id],
@@ -145,7 +145,7 @@ def create_app():
                 SELECT p.*
                 FROM projects p
                 JOIN project_members pm ON pm.project_id = p.id
-                WHERE pm.user_id = %s
+                WHERE pm.user_id = ?
                 ORDER BY p.created_at DESC
                 """,
                 [g.user["id"]],
@@ -163,7 +163,7 @@ def create_app():
         project = query(
             """
             INSERT INTO projects (name, description, owner_id)
-            VALUES (%s, %s, %s)
+            VALUES (?, ?, ?)
             RETURNING *
             """,
             [data["name"].strip(), data.get("description", "").strip(), g.user["id"]],
@@ -172,7 +172,7 @@ def create_app():
         query(
             """
             INSERT INTO project_members (project_id, user_id, role)
-            VALUES (%s, %s, 'owner')
+            VALUES (?, ?, 'owner')
             """,
             [project["id"], g.user["id"]],
             fetch="none",
@@ -204,8 +204,8 @@ def create_app():
         project = query(
             """
             UPDATE projects
-            SET name = %s, description = %s
-            WHERE id = %s
+            SET name = ?, description = ?
+            WHERE id = ?
             RETURNING *
             """,
             [data["name"].strip(), data.get("description", "").strip(), project_id],
@@ -221,7 +221,7 @@ def create_app():
             return jsonify({"error": "Project not found or access denied"}), 404
         if not is_project_owner_or_admin(access):
             return jsonify({"error": "Project owner or admin access required"}), 403
-        query("DELETE FROM projects WHERE id = %s", [project_id], fetch="none")
+        query("DELETE FROM projects WHERE id = ?", [project_id], fetch="none")
         return "", 204
 
     @app.post("/api/projects/<int:project_id>/members")
@@ -243,7 +243,7 @@ def create_app():
         query(
             """
             INSERT INTO project_members (project_id, user_id, role)
-            VALUES (%s, %s, 'member')
+            VALUES (?, ?, 'member')
             ON CONFLICT (project_id, user_id) DO NOTHING
             """,
             [project_id, user_id],
@@ -263,12 +263,12 @@ def create_app():
             return jsonify({"error": "Project owner cannot be removed"}), 400
 
         query(
-            "DELETE FROM project_members WHERE project_id = %s AND user_id = %s",
+            "DELETE FROM project_members WHERE project_id = ? AND user_id = ?",
             [project_id, user_id],
             fetch="none",
         )
         query(
-            "UPDATE tasks SET assignee_id = NULL WHERE project_id = %s AND assignee_id = %s",
+            "UPDATE tasks SET assignee_id = NULL WHERE project_id = ? AND assignee_id = ?",
             [project_id, user_id],
             fetch="none",
         )
@@ -283,13 +283,13 @@ def create_app():
 
         if g.user["role"] != "admin":
             params.append(g.user["id"])
-            where = "WHERE t.project_id IN (SELECT project_id FROM project_members WHERE user_id = %s)"
+            where = "WHERE t.project_id IN (SELECT project_id FROM project_members WHERE user_id = ?)"
 
         if project_id:
             if not get_project_access(project_id, g.user):
                 return jsonify({"error": "Project not found or access denied"}), 404
             params.append(project_id)
-            where += (" AND " if where else "WHERE ") + "t.project_id = %s"
+            where += (" AND " if where else "WHERE ") + "t.project_id = ?"
 
         rows = query(
             f"""
@@ -322,7 +322,7 @@ def create_app():
             """
             INSERT INTO tasks
               (project_id, title, description, assignee_id, status, priority, due_date, created_by)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             RETURNING *
             """,
             [
@@ -365,15 +365,15 @@ def create_app():
         }
         for key, column in column_map.items():
             if key in data:
-                fields.append(f"{column} = %s")
+                fields.append(f"{column} = ?")
                 values.append(data[key])
 
         values.append(task_id)
         updated = query(
             f"""
             UPDATE tasks
-            SET {", ".join(fields)}, updated_at = NOW()
-            WHERE id = %s
+            SET {", ".join(fields)}, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
             RETURNING *
             """,
             values,
@@ -386,7 +386,7 @@ def create_app():
     def delete_task(task_id):
         if not visible_task(task_id):
             return jsonify({"error": "Task not found or access denied"}), 404
-        query("DELETE FROM tasks WHERE id = %s", [task_id], fetch="none")
+        query("DELETE FROM tasks WHERE id = ?", [task_id], fetch="none")
         return "", 204
 
     @app.get("/api/dashboard")
@@ -396,16 +396,16 @@ def create_app():
         where = ""
         if g.user["role"] != "admin":
             params.append(g.user["id"])
-            where = "WHERE t.project_id IN (SELECT project_id FROM project_members WHERE user_id = %s)"
+            where = "WHERE t.project_id IN (SELECT project_id FROM project_members WHERE user_id = ?)"
 
         summary = query(
             f"""
             SELECT
-              COUNT(*)::int AS total,
-              COUNT(*) FILTER (WHERE status = 'todo')::int AS todo,
-              COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
-              COUNT(*) FILTER (WHERE status = 'done')::int AS done,
-              COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status <> 'done')::int AS overdue
+              COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE status = 'todo') AS todo,
+              COUNT(*) FILTER (WHERE status = 'in_progress') AS in_progress,
+              COUNT(*) FILTER (WHERE status = 'done') AS done,
+              COUNT(*) FILTER (WHERE due_date < CURRENT_DATE AND status <> 'done') AS overdue
             FROM tasks t
             {where}
             """,
@@ -414,10 +414,10 @@ def create_app():
         )
 
         if g.user["role"] == "admin":
-            project_count = query("SELECT COUNT(*)::int AS total FROM projects", fetch="one")
+            project_count = query("SELECT COUNT(*) AS total FROM projects", fetch="one")
         else:
             project_count = query(
-                "SELECT COUNT(*)::int AS total FROM project_members WHERE user_id = %s",
+                "SELECT COUNT(*) AS total FROM project_members WHERE user_id = ?",
                 [g.user["id"]],
                 fetch="one",
             )
@@ -479,7 +479,7 @@ def can_use_assignee(project_id, assignee_id):
     if not assignee_id:
         return True
     row = query(
-        "SELECT 1 FROM project_members WHERE project_id = %s AND user_id = %s",
+        "SELECT 1 FROM project_members WHERE project_id = ? AND user_id = ?",
         [project_id, assignee_id],
         fetch="one",
     )
@@ -487,7 +487,7 @@ def can_use_assignee(project_id, assignee_id):
 
 
 def visible_task(task_id):
-    task = query("SELECT * FROM tasks WHERE id = %s", [task_id], fetch="one")
+    task = query("SELECT * FROM tasks WHERE id = ?", [task_id], fetch="one")
     if not task:
         return None
     return task if get_project_access(task["project_id"], g.user) else None
