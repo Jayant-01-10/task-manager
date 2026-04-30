@@ -7,7 +7,7 @@ from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from task_manager.auth import decode_token, hash_password, sign_token, verify_password
-from task_manager.database import get_connection, init_db, query
+from task_manager.database import database_url, get_connection, init_db, query
 from task_manager.repository import (
     attach_project_details,
     create_user,
@@ -44,7 +44,11 @@ def create_app():
 
     @app.get("/api/health")
     def health():
-        return jsonify({"ok": True, "service": "project-task-rbac-app"})
+        return jsonify({
+            "ok": True,
+            "service": "project-task-rbac-app",
+            "databaseConfigured": bool(database_url()),
+        })
 
     @app.post("/api/auth/signup")
     def signup():

@@ -7,8 +7,6 @@ from psycopg2.extras import RealDictCursor
 
 def database_url():
     url = os.getenv("DATABASE_URL")
-    if not url and os.getenv("SKIP_DB_INIT") != "true":
-        raise RuntimeError("DATABASE_URL is required")
     return url
 
 
@@ -42,6 +40,10 @@ def query(sql, params=None, fetch="all"):
 
 def init_db():
     if os.getenv("SKIP_DB_INIT") == "true":
+        return
+
+    if not database_url():
+        print("DATABASE_URL is not set. Database initialization skipped.")
         return
 
     with get_connection() as connection:
