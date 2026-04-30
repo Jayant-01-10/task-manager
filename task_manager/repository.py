@@ -1,4 +1,4 @@
-from task_manager.database import query
+from task_manager.database import placeholders, query
 
 
 def public_user(user):
@@ -72,26 +72,27 @@ def attach_project_details(projects):
         return []
 
     project_ids = [project["id"] for project in projects]
+    project_placeholders = placeholders(len(project_ids))
     members = query(
-        """
+        f"""
         SELECT pm.project_id, u.id, u.name, u.email, u.role, pm.role AS project_role
         FROM project_members pm
         JOIN users u ON u.id = pm.user_id
-        WHERE pm.project_id = ANY(%s)
+        WHERE pm.project_id IN ({project_placeholders})
         ORDER BY u.name ASC
         """,
-        [project_ids],
+        project_ids,
     )
     stats = query(
-        """
+        f"""
         SELECT project_id,
           COUNT(*)::int AS total_tasks,
           COUNT(*) FILTER (WHERE status = 'done')::int AS done_tasks
         FROM tasks
-        WHERE project_id = ANY(%s)
+        WHERE project_id IN ({project_placeholders})
         GROUP BY project_id
         """,
-        [project_ids],
+        project_ids,
     )
 
     members_by_project = {}

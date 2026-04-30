@@ -7,7 +7,7 @@ from flask import Flask, g, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from task_manager.auth import decode_token, hash_password, sign_token, verify_password
-from task_manager.database import database_url, get_connection, init_db, query
+from task_manager.database import database_backend, database_url, init_db, query
 from task_manager.repository import (
     attach_project_details,
     create_user,
@@ -47,7 +47,8 @@ def create_app():
         return jsonify({
             "ok": True,
             "service": "project-task-rbac-app",
-            "databaseConfigured": bool(database_url()),
+            "databaseBackend": database_backend(),
+            "databaseConfigured": bool(database_url()) or database_backend() == "sqlite",
         })
 
     @app.post("/api/auth/signup")
@@ -159,24 +160,23 @@ def create_app():
         if errors:
             return validation_error(errors)
 
-        with get_connection() as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    """
-                    INSERT INTO projects (name, description, owner_id)
-                    VALUES (%s, %s, %s)
-                    RETURNING *
-                    """,
-                    [data["name"].strip(), data.get("description", "").strip(), g.user["id"]],
-                )
-                project = cursor.fetchone()
-                cursor.execute(
-                    """
-                    INSERT INTO project_members (project_id, user_id, role)
-                    VALUES (%s, %s, 'owner')
-                    """,
-                    [project["id"], g.user["id"]],
-                )
+        project = query(
+            """
+            INSERT INTO projects (name, description, owner_id)
+            VALUES (%s, %s, %s)
+            RETURNING *
+            """,
+            [data["name"].strip(), data.get("description", "").strip(), g.user["id"]],
+            fetch="one",
+        )
+        query(
+            """
+            INSERT INTO project_members (project_id, user_id, role)
+            VALUES (%s, %s, 'owner')
+            """,
+            [project["id"], g.user["id"]],
+            fetch="none",
+        )
         return jsonify({"project": attach_project_details([project])[0]}), 201
 
     @app.get("/api/projects/<int:project_id>")

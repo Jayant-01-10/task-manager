@@ -2,7 +2,7 @@
 
 EtharaAI Task Manager is a full-stack project and task management web app. Users can sign up, log in, create projects, add team members, assign tasks, update task status, and track progress from a dashboard.
 
-The backend is built with Flask and PostgreSQL. The frontend is plain HTML, CSS, and JavaScript served from the `public/` folder.
+The backend is built with Flask and a SQL database. By default it uses SQLite automatically, so you can deploy without manually creating a database service. If `DATABASE_URL` is provided later, the app can use PostgreSQL instead.
 
 ## Features
 
@@ -15,7 +15,8 @@ The backend is built with Flask and PostgreSQL. The frontend is plain HTML, CSS,
 - Dashboard for total tasks, task status, overdue tasks, and project count
 - Admin-only user role management
 - REST API backend
-- PostgreSQL database
+- SQLite database by default
+- Optional PostgreSQL support through `DATABASE_URL`
 - Railway deployment support
 
 ## Folder Structure
@@ -94,12 +95,12 @@ pip install -r requirements.txt
 Create a `.env` file:
 
 ```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 JWT_SECRET=use-a-long-random-secret
 PORT=5000
+SQLITE_PATH=task_manager.sqlite3
 ```
 
-Example local database URL:
+Optional PostgreSQL URL:
 
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/task_manager
@@ -184,11 +185,12 @@ These files are included for Railway:
 Add these variables to the Railway web service:
 
 ```env
-DATABASE_URL=${{Postgres.DATABASE_URL}}
 JWT_SECRET=your-long-random-secret
 ```
 
 Railway provides `PORT` automatically.
+
+You do not need to add PostgreSQL manually. If `DATABASE_URL` is not set, the app creates and uses a SQLite database automatically.
 
 Do not set this in production:
 
@@ -200,9 +202,9 @@ SKIP_DB_INIT=true
 
 1. Push this project to GitHub.
 2. Create a Railway project from the GitHub repository.
-3. Add a PostgreSQL database service.
-4. Add `DATABASE_URL` from the PostgreSQL service to the web service.
-5. Add `JWT_SECRET`.
-6. Redeploy the web service.
+3. Add `JWT_SECRET` in the web service variables.
+4. Redeploy the web service.
 
 The database tables are created automatically when the Flask app starts.
+
+Note: Railway's normal filesystem can reset across redeploys. The SQLite fallback is simple and deploys without manual setup, but PostgreSQL is still better for permanent production data.
