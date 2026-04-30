@@ -240,6 +240,13 @@ NODE_ENV=production
 
 Railway will automatically provide the app port through `PORT`.
 
+Required deployment files are already included:
+
+- `Procfile` tells Railway to run `npm start`
+- `railway.json` defines the Nixpacks builder, start command, restart policy, and healthcheck
+- `.node-version` pins Node.js 20
+- `package.json` includes the production start script and Node engine
+
 ### 5. Deploy
 
 Railway will use `railway.json` and run:
